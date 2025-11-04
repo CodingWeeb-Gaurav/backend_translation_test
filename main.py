@@ -8,6 +8,11 @@ origins = [
     "https://nathaly-purest-ariella.ngrok-free.dev",  # ADD THIS
     "https://localhost:3000",
     "https://nischem.com",
+    "http://0.0.0.0:3000",
+    # for localhost:3001
+    "http://localhost:3001",
+    "http://0.0.0.0:3001",
+    "https://nathaly-purest-ariella.ngrok-free.dev/",
 ]
 
 app = FastAPI(title="Falcon Chatbot API")
@@ -31,4 +36,4 @@ async def root():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="127..0.0.1", port=8080)

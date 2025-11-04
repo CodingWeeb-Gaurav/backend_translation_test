@@ -134,7 +134,7 @@ async def process_address_purpose(user_input: str, session_data: dict):
     
     # Add conversation history
     history = session_data.get("history", [])
-    for entry in history[-6:]:
+    for entry in history[-18:]:
         messages.append({"role": "user", "content": entry["user"]})
         messages.append({"role": "assistant", "content": entry["agent"]})
     

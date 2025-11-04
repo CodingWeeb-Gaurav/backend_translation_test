@@ -1,12 +1,15 @@
-# agent_manager.py
 from typing import Dict, Any
 import datetime
+import logging
+from colorama import Fore, Style  # NEW: Import colorama for colored logging
 from core.db import db  # your MongoDB client
 from agents.product_request import handle_product_request
 from agents.request_details import handle_request_details
 from agents.address_purpose import handle_address_purpose
+from core.utils import translator, is_supported_language  # Import translation utilities
 
-
+# Set up logging
+logger = logging.getLogger(__name__)
 
 # ---------- Field Definitions ---------- #
 
@@ -14,35 +17,35 @@ FIELD_METADATA = {
     "unit": {
         "type": "select",
         "options": ["KG", "TON"],
-        "required_for": ["Order", "Sample", "Quote", "ppr"],  # CHANGED HERE
+        "required_for": ["Order", "Sample", "Quote"],  # CHANGED HERE
         "agent": 2,
         "description": "Unit of measurement for the product"
     },
     "quantity": {
         "type": "number", 
         "validation": "positive_number",
-        "required_for": ["Order", "Sample", "Quote", "ppr"],  # CHANGED HERE
+        "required_for": ["Order", "Sample", "Quote"],  # CHANGED HERE
         "agent": 2,
         "description": "Quantity required (must be positive number), greater than or equal to minQuantity and less than available stock" 
     },
     "price_per_unit": {
         "type": "number",
         "validation": "positive_number", 
-        "required_for": ["Order", "Sample", "Quote", "ppr"],  # CHANGED HERE
+        "required_for": ["Order", "Sample", "Quote"],  # CHANGED HERE
         "agent": 2,
         "description": "Price per unit (must be positive number)"
     },
     "expected_price": {
         "type": "calculated",
         "calculation": "quantity * price_per_unit",
-        "required_for": ["Order", "Sample", "Quote", "ppr"],  # CHANGED HERE
+        "required_for": ["Order", "Sample", "Quote"],  # CHANGED HERE
         "agent": 2,
         "description": "Automatically calculated total price"
     },
     "address": {
         "type": "select",
         "options": "fetch_from_user_account via API",
-        "required_for": ["Order", "Sample", "Quote", "ppr"],  # CHANGED HERE
+        "required_for": ["Order", "Sample", "Quote"],  # CHANGED HERE
         "agent": 3,
         "description": "Delivery address (choose from saved addresses)"
     },
@@ -77,14 +80,14 @@ FIELD_METADATA = {
     "delivery_date": {
         "type": "date",
         "validation": "future_date",
-        "required_for": ["Order", "Sample","Quote", "ppr"],  # CHANGED HERE
+        "required_for": ["Order", "Sample","Quote"],  # CHANGED HERE
         "agent": 2,
         "description": "Delivery date (must be after today)"
     },
     "market": {
         "type": "select",
         "options": "fetch_from_site via API",
-        "required_for": ["Order", "ppr"],  # CHANGED HERE
+        "required_for": ["Order"],  # CHANGED HERE
         "agent": 3,
         "description": "Target market"
     }
@@ -183,42 +186,94 @@ def expand_session_for_address_purpose(data: Dict[str, Any]):
 
 # ---------- Agent Manager Core ---------- #
 
-async def route_message(user_input: str, session_id: str, user_auth: str) -> str:
+async def route_message(user_input: str, session_id: str, user_auth: str, language: str = "en") -> str:
     """
-    Main function that routes user input to the correct agent,
-    updates MongoDB state, and returns the AI response.
+    MAIN FUNCTION - UPDATED WITH ENHANCED TRANSLATION LOGGING
+    Routes user input to the correct agent with translation support.
     """
+    # Import enhanced logging functions
+    from core.utils import log_chat_session_start, log_chat_session_end
+    
+    # Validate language
+    if not is_supported_language(language):
+        logger.warning(f"{Fore.RED}⚠️ Unsupported language: {language}, defaulting to English")
+        language = "en"
+    
+    # Log session start
+    log_chat_session_start(session_id, language, user_input)
+    
+    # Step 1: Translate input to English if needed
+    if language != "en":
+        english_input = await translator.translate_to_english(user_input, language, session_id)
+    else:
+        english_input = user_input
+        logger.info(f"{Fore.GREEN}🎯 PROCESSING ENGLISH INPUT: {Fore.WHITE}\"{english_input}\"")
+    
+    # Load session data
     session_data = await load_session(session_id)
 
     # If session doesn't exist, start a new one
     if not session_data:
         session_data = await create_new_session(session_id, user_auth)
         current_agent = "product_request"
+        logger.info(f"{Fore.YELLOW}🆕 NEW SESSION CREATED | Agent: {current_agent}")
     else:
         current_agent = session_data.get("agent", "product_request")
+        logger.info(f"{Fore.YELLOW}🔄 CONTINUING SESSION | Current Agent: {current_agent}")
 
-    response = ""
+    english_response = ""
 
-    # ---------- Agent Routing ----------
-    if current_agent == "product_request":
-        response, session_data = await handle_product_request(user_input, session_data)
-        if session_data.get("agent") == "request_details":
-            session_data = expand_session_for_request(session_data)
+    # ---------- Agent Routing (ALL AGENTS WORK WITH ENGLISH) ----------
+    try:
+        logger.info(f"{Fore.BLUE}🤖 AGENT PROCESSING STARTED...")
+        
+        if current_agent == "product_request":
+            english_response, session_data = await handle_product_request(english_input, session_data)
+            if session_data.get("agent") == "request_details":
+                session_data = expand_session_for_request(session_data)
+                logger.info(f"{Fore.CYAN}🔄 AGENT TRANSITION: product_request → request_details")
 
-    elif current_agent == "request_details":
-        response, session_data = await handle_request_details(user_input, session_data)
-        if session_data.get("agent") == "address_purpose":
-            session_data = expand_session_for_address_purpose(session_data)
+        elif current_agent == "request_details":
+            english_response, session_data = await handle_request_details(english_input, session_data)
+            if session_data.get("agent") == "address_purpose":
+                session_data = expand_session_for_address_purpose(session_data)
+                logger.info(f"{Fore.CYAN}🔄 AGENT TRANSITION: request_details → address_purpose")
 
-    elif current_agent == "address_purpose":
-        response, session_data = await handle_address_purpose(user_input, session_data)
+        elif current_agent == "address_purpose":
+            english_response, session_data = await handle_address_purpose(english_input, session_data)
 
+        else:
+            english_response = "⚠️ Unknown agent state. Restarting session..."
+            session_data = await create_new_session(session_id, user_auth)
+            
+        logger.info(f"{Fore.GREEN}🤖 AGENT RESPONSE (EN): {Fore.WHITE}\"{english_response}\"")
+
+    except Exception as e:
+        logger.error(f"{Fore.RED}❌ AGENT PROCESSING ERROR: {e}")
+        english_response = "Sorry, I encountered an error. Please try again."
+
+    # Step 2: Translate response back to user's language if needed
+    if language != "en":
+        final_response = await translator.translate_from_english(english_response, language, session_id)
     else:
-        response = "⚠️ Unknown agent state. Restarting session..."
-        session_data = await create_new_session(session_id, user_auth)
+        final_response = english_response
+        logger.info(f"{Fore.GREEN}📤 FINAL ENGLISH RESPONSE: {Fore.WHITE}\"{final_response}\"")
 
     # Save session to MongoDB
     await save_session(session_id, session_data)
-    await save_to_mongo_stub(session_id, user_input, response)
+    await save_to_mongo_stub(session_id, user_input, final_response)
 
-    return response
+    # Log session completion
+    log_chat_session_end(session_id, language, final_response)
+
+    return final_response
+
+
+# ---------- Backward Compatibility ---------- #
+# Keep the original function for existing calls without language parameter
+async def route_message_legacy(user_input: str, session_id: str, user_auth: str) -> str:
+    """
+    Legacy function for backward compatibility
+    Uses English as default language
+    """
+    return await route_message(user_input, session_id, user_auth, "en")

@@ -80,7 +80,7 @@ async def process_request_details(user_input: str, session_data: dict):
     
     # Add conversation history
     history = session_data.get("history", [])
-    for entry in history[-6:]:  # Last 3 exchanges
+    for entry in history[-20:]:  # Last 3 exchanges
         messages.append({"role": "user", "content": entry["user"]})
         messages.append({"role": "assistant", "content": entry["agent"]})
     
@@ -134,9 +134,13 @@ async def process_request_details(user_input: str, session_data: dict):
                                             "description": "Extracted delivery date"
                                         }
                                     }
+                                },
+                                "request_type": {  # ADD THIS
+                                    "type": "string",
+                                    "description": "Type of request for validation rules"
                                 }
                             },
-                            "required": ["extracted_fields"]
+                            "required": ["extracted_fields"]  # request_type is optional
                         }
                     }
                 },
@@ -156,9 +160,13 @@ async def process_request_details(user_input: str, session_data: dict):
                                 "field_value": {
                                     "type": "string",
                                     "description": "Value to validate"
+                                },
+                                "request_type": {  # ADD THIS NEW PARAMETER
+                                    "type": "string", 
+                                    "description": "Type of request (sample, order, quote) for validation rules"
                                 }
                             },
-                            "required": ["field_name", "field_value"]
+                            "required": ["field_name", "field_value"]  # request_type is optional
                         }
                     }
                 },
@@ -254,13 +262,16 @@ async def process_request_details(user_input: str, session_data: dict):
                 if function_name == "extract_and_validate_all_fields":
                     # Process all extracted fields in bulk
                     extracted_fields = function_args.get("extracted_fields", {})
+                    # GET REQUEST TYPE FROM ARGS OR SESSION
+                    req_type = function_args.get("request_type", request_type)
                     validation_results = {}
                     
                     for field_name, field_value in extracted_fields.items():
                         if field_value is not None:
                             # Validate each field
                             if field_name == "quantity":
-                                result = validate_quantity({"quantity": field_value}, product_details)
+                                # PASS THE REQUEST TYPE HERE
+                                result = validate_quantity({"quantity": field_value}, product_details, req_type)
                             elif field_name == "delivery_date":
                                 result = validate_date({"delivery_date": field_value})
                             elif field_name in ["incoterm", "mode_of_payment", "packaging_pref"]:
@@ -275,8 +286,7 @@ async def process_request_details(user_input: str, session_data: dict):
                             # If valid, update session
                             if result.get("is_valid", False):
                                 session_updates[field_name] = field_value
-                                print(f"✅ Validated and will update {field_name}: {field_value}")
-                    
+                                print(f"✅ Validated and will update {field_name}: {field_value}")              
                     # Calculate expected price if both quantity and price_per_unit are provided
                     if (extracted_fields.get("quantity") and extracted_fields.get("price_per_unit") and
                         validation_results.get("quantity", {}).get("is_valid") and
@@ -302,9 +312,12 @@ async def process_request_details(user_input: str, session_data: dict):
                 elif function_name == "validate_individual_field":
                     field_name = function_args["field_name"]
                     field_value = function_args["field_value"]
+                    # GET THE REQUEST TYPE FROM ARGS OR USE THE ONE FROM SESSION
+                    req_type = function_args.get("request_type", request_type)
                     
                     if field_name == "quantity":
-                        result = validate_quantity({"quantity": field_value}, product_details)
+                        # PASS THE REQUEST TYPE HERE
+                        result = validate_quantity({"quantity": field_value}, product_details, req_type)
                     elif field_name == "delivery_date":
                         result = validate_date({"delivery_date": field_value})
                     elif field_name in ["incoterm", "mode_of_payment", "packaging_pref"]:
@@ -381,30 +394,46 @@ async def process_request_details(user_input: str, session_data: dict):
         }
 
 # Validation Functions (keep the same as before)
-def validate_quantity(args: dict, product_details: dict) -> dict:
-    """Validate quantity against product limits"""
+def validate_quantity(args: dict, product_details: dict, request_type: str = "") -> dict:
+    """Validate quantity against product limits - with special rules for samples"""
     try:
         quantity = float(args["quantity"])
         min_quantity = float(product_details.get("minQuantity", 1))
         max_quantity = float(product_details.get("maxQuantity", float('inf')))
         
-        if quantity < min_quantity:
-            return {
-                "is_valid": False,
-                "message": f"Quantity must be at least {min_quantity} (minimum order quantity)",
-                "suggested_min": min_quantity
-            }
-        elif quantity > max_quantity:
-            return {
-                "is_valid": False,
-                "message": f"Quantity exceeds available stock of {max_quantity}",
-                "suggested_max": max_quantity
-            }
+        # Special handling for sample requests
+        if request_type.lower() == "sample":
+            # For samples: allow decimal quantities like 0.01, no minimum, but still check maximum
+            if quantity > max_quantity:
+                return {
+                    "is_valid": False,
+                    "message": f"Sample quantity {quantity} exceeds available stock of {max_quantity}",
+                    "suggested_max": max_quantity
+                }
+            else:
+                return {
+                    "is_valid": True,
+                    "message": f"Sample quantity {quantity} is valid (max: {max_quantity})"
+                }
         else:
-            return {
-                "is_valid": True,
-                "message": f"Quantity {quantity} is valid (min: {min_quantity}, max: {max_quantity})"
-            }
+            # For order/quotation: apply normal validation with minimum
+            if quantity < min_quantity:
+                return {
+                    "is_valid": False,
+                    "message": f"Quantity must be at least {min_quantity} (minimum order quantity)",
+                    "suggested_min": min_quantity
+                }
+            elif quantity > max_quantity:
+                return {
+                    "is_valid": False,
+                    "message": f"Quantity exceeds available stock of {max_quantity}",
+                    "suggested_max": max_quantity
+                }
+            else:
+                return {
+                    "is_valid": True,
+                    "message": f"Quantity {quantity} is valid (min: {min_quantity}, max: {max_quantity})"
+                }
     except (ValueError, TypeError):
         return {
             "is_valid": False,
@@ -538,7 +567,7 @@ def get_required_fields(request_type: str) -> list:
         "order":  ["unit", "quantity", "price_per_unit", "expected_price", "phone", "incoterm", "mode_of_payment", "packaging_pref", "delivery_date"],
         "sample": ["unit", "quantity", "price_per_unit", "expected_price", "phone", "incoterm", "mode_of_payment", "packaging_pref", "delivery_date"],
         "quote":  ["unit", "quantity", "price_per_unit", "expected_price", "phone", "incoterm", "mode_of_payment", "packaging_pref", "delivery_date"],  
-        "ppr":    ["unit", "quantity", "price_per_unit", "expected_price", "delivery_date"]  # PPR has different requirements
+        # "ppr":    ["unit", "quantity", "price_per_unit", "expected_price", "delivery_date"]  # PPR has different requirements
     }
     
     # Return fields for the specific request type, or base fields if not found
@@ -558,6 +587,11 @@ def build_system_prompt(session_data: dict, required_fields: list, completed_fie
     request_type = session_data.get("request", "").upper()
     product_details = session_data.get("product_details", {})
     
+    # ADD SPECIAL NOTE FOR SAMPLE QUANTITIES
+    sample_note = ""
+    if request_type.lower() == "sample":
+        sample_note = "\n🚨 **SPECIAL SAMPLE RULE**: For sample requests, ANY quantity is allowed (even very small amounts like 0.01, 0.5, etc.) as long as it doesn't exceed maximum stock. NO minimum quantity requirement for samples!"
+    
     prompt = f"""You are a **Request Details Specialist** for chemical product orders.
     You are the second agent in a triple-agent system where you collect and validate all necessary details for processing user requests.
     The first agent has already provided the product and request type. and after your completion, you will hand over to the third agent who manages address and purpose by changing the session's agent to "address_purpose".
@@ -570,9 +604,12 @@ PRODUCT INFORMATION:
 - Available Stock: {product_details.get('maxQuantity', 'N/A')}
 - Minimum Order: {product_details.get('minQuantity', 'N/A')}
 - Current Unit: {product_details.get('unit', 'N/A')}
+{sample_note}
 
 ALL REQUIRED FIELDS for {request_type}:
 {format_fields_info(required_fields, session_data)}
+
+# ... rest of your existing prompt remains the same ...
 
 FIELD OPTIONS: 
 - Unit: KG, TON
@@ -600,7 +637,7 @@ Completed: {len(completed_fields)}/{len(required_fields)} fields
 - Calculate expected_price automatically (using the calculate_expected_price tool only) when both quantity and price_per_unit are provided
 - When all fields are validated then show the list of all the fields with their values before asking for final confirmation before updating session
 - When all fields complete, ask for check completion_status and hand over
-- You are unable to update any details except the required fields, if user asks to change other details (selected product or request(sample, ppr,order, quote)), politely refuse and tell them to refresh the session to start a new order.
+- You are unable to update any details except the required fields, if user asks to change other details (selected product or request(sample,order, quote)), politely refuse and tell them to refresh the session to start a new order.
 - After changing the session's agent to "address_purpose", you cannot make any more changes or place new orders. Because the third agent has taken over the chat. If the user still asks then tell them to refresh the session to start a new order.
 **TOOLS AVAILABLE:**
 - extract_and_validate_all_fields: Extract and validate ALL fields from user message (PREFERRED)
@@ -616,9 +653,10 @@ Completed: {len(completed_fields)}/{len(required_fields)} fields
 def format_fields_info(required_fields: list, session_data: dict) -> str:
     """Format field information for prompt"""
     product_details = session_data.get("product_details", {})
+    request_type = session_data.get("request", "").lower()
+    
     field_descriptions = {
         "unit": "Unit of measurement (KG or TON)",
-        "quantity": f"Quantity required (≥{product_details.get('minQuantity', 1)} and ≤{product_details.get('maxQuantity', 'available')})",
         "price_per_unit": "Your offered price per unit",
         "expected_price": "Total expected price (auto-calculated)",
         "phone": "Contact phone number (international format: +91XXXXXXXXXX)",
@@ -627,6 +665,12 @@ def format_fields_info(required_fields: list, session_data: dict) -> str:
         "packaging_pref": "Packaging preference (Bulk Tanker, PP Bag, Jerry Can, or Drum)",
         "delivery_date": f"Delivery date (after {datetime.now().strftime('%Y-%m-%d')}, YYYY-MM-DD format)"
     }
+    
+    # SPECIAL HANDLING FOR QUANTITY FIELD BASED ON REQUEST TYPE
+    if request_type == "sample":
+        field_descriptions["quantity"] = f"Sample quantity required (any amount up to {product_details.get('maxQuantity', 'available')} - no minimum for samples)"
+    else:
+        field_descriptions["quantity"] = f"Quantity required (≥{product_details.get('minQuantity', 1)} and ≤{product_details.get('maxQuantity', 'available')})"
     
     return "\n".join([f"- {field}: {field_descriptions.get(field, field)}" for field in required_fields])
 

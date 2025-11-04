@@ -1,7 +1,11 @@
 import requests
+import os
+from dotenv import load_dotenv
 
-API_KEY = "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"
+load_dotenv()
+
 API_URL = "https://openrouter.ai/api/v1/chat/completions"
+API_KEY = os.getenv("OPENROUTER_API_KEY")
 
 headers = {
     "Authorization": f"Bearer {API_KEY}",
@@ -9,7 +13,7 @@ headers = {
 }
 
 data = {
-    "model": "gpt-4o-mini",  # you can also try gpt-4o or claude-3-opus
+    "model": "gpt-4o-mini",
     "messages": [
         {"role": "system", "content": "You are a helpful assistant."},
         {"role": "user", "content": "Test message from my backend — reply with '✅ working' if you received this."}
@@ -23,4 +27,3 @@ if response.status_code == 200:
     print("Response:", result["choices"][0]["message"]["content"])
 else:
     print("Error:", response.status_code, response.text)
-    
