@@ -6,6 +6,8 @@ from datetime import datetime, timedelta
 from openai import AsyncOpenAI
 import os
 from dotenv import load_dotenv
+import phonenumbers
+from phonenumbers import PhoneNumberFormat
 # Load environment variables from .env file
 load_dotenv()
 
@@ -497,31 +499,32 @@ def validate_selection(args: dict) -> dict:
             "allowed_options": allowed_options
         }
 
+import phonenumbers
+
 def validate_phone(args: dict) -> dict:
-    """Validate phone number format for different countries"""
+    """Validate international phone numbers - minimal version"""
     phone = args["phone"].strip()
     
-    patterns = [
-        r'^\+?[1-9]\d{1,14}$',
-        r'^\+?[\d\s\-\(\)]{10,}$',
-        r'^[\d\(\)\-\s\+]{10,}$'
-    ]
-    
-    clean_phone = re.sub(r'[\s\-\(\)]', '', phone)
-    
-    is_valid = any(re.match(pattern, clean_phone) for pattern in patterns) and len(clean_phone) >= 10
-    
-    if is_valid:
+    try:
+        parsed_number = phonenumbers.parse(phone, None)
+        is_valid = phonenumbers.is_valid_number(parsed_number)
+        
         return {
-            "is_valid": True,
-            "message": "Phone number format is valid",
-            "cleaned_number": clean_phone
+            "is_valid": is_valid,
+            "message": "Phone number is valid" if is_valid else "Invalid phone number format"
         }
-    else:
+            
+    except phonenumbers.NumberParseException:
         return {
             "is_valid": False,
-            "message": "Please enter a valid phone number (at least 10 digits, international format supported)",
-            "examples": "+1234567890, 123-456-7890, (123) 456-7890"
+            "message": "Unable to parse phone number"
+        }
+            
+    except phonenumbers.NumberParseException as e:
+        return {
+            "is_valid": False,
+            "message": f"Unable to parse phone number: {str(e)}",
+            "examples": "+1-800-555-1234, +44 20 7946 0958, +33 1 42 86 83 27"
         }
 
 def calculate_expected_price(args: dict) -> dict:
@@ -659,7 +662,7 @@ def format_fields_info(required_fields: list, session_data: dict) -> str:
         "unit": "Unit of measurement (KG or TON)",
         "price_per_unit": "Your offered price per unit",
         "expected_price": "Total expected price (auto-calculated)",
-        "phone": "Contact phone number (international format: +91XXXXXXXXXX)",
+        "phone": "Contact phone number (international format: +(country code)(number))",
         "incoterm": "Delivery terms (Ex Factory or Deliver to Buyer Factory)",
         "mode_of_payment": "Payment method (LC, TT, or Cash)",
         "packaging_pref": "Packaging preference (Bulk Tanker, PP Bag, Jerry Can, or Drum)",
