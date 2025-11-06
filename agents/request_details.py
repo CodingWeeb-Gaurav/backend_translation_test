@@ -165,7 +165,7 @@ async def process_request_details(user_input: str, session_data: dict):
                                 },
                                 "request_type": {  # ADD THIS NEW PARAMETER
                                     "type": "string", 
-                                    "description": "Type of request (sample, order, quote) for validation rules"
+                                    "description": "Type of request (sample, order (order of purchase), quote (quotation or offer price)) for validation rules"
                                 }
                             },
                             "required": ["field_name", "field_value"]  # request_type is optional
@@ -615,10 +615,10 @@ ALL REQUIRED FIELDS for {request_type}:
 # ... rest of your existing prompt remains the same ...
 
 FIELD OPTIONS: 
-- Unit: KG, TON
-- Incoterm: Ex Factory, Deliver to Buyer Factory  
-- Payment: LC, TT, Cash
-- Packaging: Bulk Tanker, PP Bag, Jerry Can, Drum
+- Unit: 1. KG 2. TON
+- Incoterm: 1. Ex Factory (Ex Works or Delivery From Factory) 2. Deliver to Buyer Factory
+- Payment: 1. LC (Letter of Credit), 2. TT (Telegraphic transfer or Bank Transfer), 3. Cash
+- Packaging: 1. Bulk Tanker Truck, 2. PP Bag, 3. Jerry Can, 4. Drum
 
 CURRENT PROGRESS:
 Completed: {len(completed_fields)}/{len(required_fields)} fields
@@ -630,7 +630,7 @@ Completed: {len(completed_fields)}/{len(required_fields)} fields
 2. **EXTRACT BULK**: Use extract_and_validate_all_fields to process multiple fields from user message
 3. **VALIDATE SILENTLY**: Validate fields in background without asking for confirmation
 4. **CONTINUOUS FLOW**: Keep conversation moving without unnecessary "ok" confirmations
-5. When showing the Field options in any message, use '•' points like 'Incoterm : • Ex Factory • Deliver to Buyer Factory' or 'Payment Method : • LC • TT • Cash'
+5. When showing the Field options in any message, use '•' points like 'Incoterm : • Ex Factory (Delivery from Factory) • Deliver to Buyer Factory' or 'Payment Method : • LC (Letter of Credit) • TT (Telegraphic or Bank Transfer) • Cash' or 'Packaging Preference : • Bulk Tanker Truck • PP Bag • Jerry Can • Drum'
 **RESPONSE GUIDELINES:**
 - Start by showing ALL missing fields in first message
 - Extract ALL possible values from user messages (even if you asked for specific field)
@@ -639,7 +639,7 @@ Completed: {len(completed_fields)}/{len(required_fields)} fields
 - Keep conversation flowing naturally
 - Calculate expected_price automatically (using the calculate_expected_price tool only) when both quantity and price_per_unit are provided
 - When all fields are validated then show the list of all the fields with their values before asking for final confirmation before updating session
-- When all fields complete, ask for check completion_status and hand over
+- When all fields complete, ask for check completion_status and hand over to next agent which will take the address and purpose by changing session's agent to "address_purpose". 
 - You are unable to update any details except the required fields, if user asks to change other details (selected product or request(sample,order, quote)), politely refuse and tell them to refresh the session to start a new order.
 - After changing the session's agent to "address_purpose", you cannot make any more changes or place new orders. Because the third agent has taken over the chat. If the user still asks then tell them to refresh the session to start a new order.
 **TOOLS AVAILABLE:**
@@ -663,9 +663,9 @@ def format_fields_info(required_fields: list, session_data: dict) -> str:
         "price_per_unit": "Your offered price per unit",
         "expected_price": "Total expected price (auto-calculated)",
         "phone": "Contact phone number (international format: +(country code)(number))",
-        "incoterm": "Delivery terms (Ex Factory or Deliver to Buyer Factory)",
-        "mode_of_payment": "Payment method (LC, TT, or Cash)",
-        "packaging_pref": "Packaging preference (Bulk Tanker, PP Bag, Jerry Can, or Drum)",
+        "incoterm": "Delivery terms (1. Ex Factory [ex works or Delivery From Factory] or 2. Deliver to Buyer Factory)",
+        "mode_of_payment": "Payment method (1. LC (Letter of Credit), 2. TT (Telegraphic or Bank Transfer), 3. Cash)",
+        "packaging_pref": "Packaging preference (1. Bulk Tanker Truck, 2. PP Bag, 3. Jerry Can, 4. Drum)",
         "delivery_date": f"Delivery date (after {datetime.now().strftime('%Y-%m-%d')}, YYYY-MM-DD format)"
     }
     
