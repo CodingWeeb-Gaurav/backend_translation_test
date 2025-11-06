@@ -627,6 +627,17 @@ Completed: {len(completed_fields)}/{len(required_fields)} fields
 🚀 **NEW BULK PROCESSING STRATEGY:**
 
 1. **FIRST MESSAGE**: Show ALL missing fields and invite user to provide them in any format
+example:
+    "To proceed with your request, please provide the following details:
+    - Quantity (between <minQuantity (if not request != sample)> and <maxQuantity> KG)
+    - Price per unit
+    - Phone number
+    - Incoterm (• Ex Factory [Ex Works or Delivery From Factory] • Deliver to Buyer Factory)
+    - Mode of payment (• LC (Letter of Credit), • TT (Telegraphic Transfer), • Cash)
+    - Packaging preference (• Bulk Tanker (in Truck), • PP Bag, • Jerry Can, • Drum)
+    - Delivery date (after <today's date>, in YYYY-MM-DD format)
+    Feel free to provide all the details one by one or in a single message."
+
 2. **EXTRACT BULK**: Use extract_and_validate_all_fields to process multiple fields from user message
 3. **VALIDATE SILENTLY**: Validate fields in background without asking for confirmation
 4. **CONTINUOUS FLOW**: Keep conversation moving without unnecessary "ok" confirmations
@@ -649,6 +660,7 @@ Completed: {len(completed_fields)}/{len(required_fields)} fields
 - calculate_expected_price: Always Compute total price from quantity * price per unit using this tool only, not by yourself, always show  the response of calculated_expected_price tool
 - update_validated_field: Store validated field
 - check_completion_status: Verify completion
+
 
 **START NOW: Show all missing fields and invite bulk input.**"""
 
