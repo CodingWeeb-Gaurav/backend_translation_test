@@ -618,7 +618,7 @@ FIELD OPTIONS:
 - Unit: 1. KG 2. TON
 - Incoterm: 1. Ex Factory (Ex Works or Delivery From Factory) 2. Deliver to Buyer Factory
 - Payment: 1. LC (Letter of Credit), 2. TT (Telegraphic transfer or Bank Transfer), 3. Cash
-- Packaging: 1. Bulk Tanker Truck, 2. PP Bag, 3. Jerry Can, 4. Drum
+- Packaging: 1. Bulk Tanker (in Truck), 2. PP Bag, 3. Jerry Can, 4. Drum
 
 CURRENT PROGRESS:
 Completed: {len(completed_fields)}/{len(required_fields)} fields
@@ -630,7 +630,8 @@ Completed: {len(completed_fields)}/{len(required_fields)} fields
 2. **EXTRACT BULK**: Use extract_and_validate_all_fields to process multiple fields from user message
 3. **VALIDATE SILENTLY**: Validate fields in background without asking for confirmation
 4. **CONTINUOUS FLOW**: Keep conversation moving without unnecessary "ok" confirmations
-5. When showing the Field options in any message, use '•' points like 'Incoterm : • Ex Factory (Delivery from Factory) • Deliver to Buyer Factory' or 'Payment Method : • LC (Letter of Credit) • TT (Telegraphic or Bank Transfer) • Cash' or 'Packaging Preference : • Bulk Tanker Truck • PP Bag • Jerry Can • Drum'
+5. When showing the Field options in any message, use '•' points like 'Incoterm : • Ex Factory (Delivery from Factory) • Deliver to Buyer Factory' or 'Payment Method : • LC (Letter of Credit) • TT (Telegraphic or Bank Transfer) • Cash' or 'Packaging Preference : • Bulk Tanker (in Truck) • PP Bag • Jerry Can • Drum'
+6. If user gives unclear or ambiguous input of Packaging Preference, Incoterm, or Mode of Payment, politely ask for clarification by showing the options again using ordered indexed list (e.g., 1. Bulk Tanker (in Truck), \n 2. PP Bag, \n 3. Jerry Can, \n 4. Drum) and ask to select by index. But each field should be asked separately, not all at once in such case.
 **RESPONSE GUIDELINES:**
 - Start by showing ALL missing fields in first message
 - Extract ALL possible values from user messages (even if you asked for specific field)
@@ -665,7 +666,7 @@ def format_fields_info(required_fields: list, session_data: dict) -> str:
         "phone": "Contact phone number (international format: +(country code)(number))",
         "incoterm": "Delivery terms (1. Ex Factory [ex works or Delivery From Factory] or 2. Deliver to Buyer Factory)",
         "mode_of_payment": "Payment method (1. LC (Letter of Credit), 2. TT (Telegraphic or Bank Transfer), 3. Cash)",
-        "packaging_pref": "Packaging preference (1. Bulk Tanker Truck, 2. PP Bag, 3. Jerry Can, 4. Drum)",
+        "packaging_pref": "Packaging preference (1. Bulk Tanker (in Truck), 2. PP Bag, 3. Jerry Can, 4. Drum)",
         "delivery_date": f"Delivery date (after {datetime.now().strftime('%Y-%m-%d')}, YYYY-MM-DD format)"
     }
     
