@@ -632,9 +632,9 @@ example:
     - Quantity (between <minQuantity (if not request != sample)> and <maxQuantity> KG)
     - Price per unit
     - Phone number
-    - Incoterm (• Ex Factory [Ex Works or Delivery From Factory] • Deliver to Buyer Factory)
-    - Mode of payment (• LC (Letter of Credit), • TT (Telegraphic Transfer), • Cash)
-    - Packaging preference (• Bulk Tanker (in Truck), • PP Bag, • Jerry Can, • Drum)
+    - Incoterm (- Ex Factory [Ex Works or Delivery From Factory] \n - Deliver to Buyer Factory)
+    - Mode of payment (- LC (Letter of Credit), \n - TT (Telegraphic Transfer), \n - Cash)
+    - Packaging preference (- Bulk Tanker (in Truck), \n - PP Bag, \n - Jerry Can, \n - Drum)
     - Delivery date (after <today's date>, in YYYY-MM-DD format)
     Feel free to provide all the details one by one or in a single message."
 
