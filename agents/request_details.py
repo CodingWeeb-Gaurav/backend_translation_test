@@ -599,7 +599,7 @@ def build_system_prompt(session_data: dict, required_fields: list, completed_fie
     You are the second agent in a triple-agent system where you collect and validate all necessary details for processing user requests.
     The first agent has already provided the product and request type. and after your completion, you will hand over to the third agent who manages address and purpose by changing the session's agent to "address_purpose".
 Your job is to collect and validate all required details for a {request_type} request.
-Always respond with a plain text without BOLD, ITALICS, or MARKDOWN formatting.
+Always respond with a markdown formatted message with proper line breaks but no text enlargement (headings).
 
 PRODUCT INFORMATION:
 - Product: {session_data.get('product_name', 'N/A')}
