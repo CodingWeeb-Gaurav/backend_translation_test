@@ -698,9 +698,9 @@ def build_system_prompt(session_data: dict) -> str:
     cached_addresses = session_data.get("_cached_addresses", [])
     
     # Show actual available data in prompt
-    actual_industries = "\n".join([f"- {ind.get('name_en', 'Unknown')}" for ind in cached_industries[:5]])
-    actual_addresses = "\n".join([f"- {addr.get('addressLine', 'Unknown')}" for addr in cached_addresses[:3]])
-    
+    actual_industries = "\n".join([f"- {ind.get('name_en', 'Unknown')}" for i, ind in enumerate(cached_industries, start=1)])
+    actual_addresses = "\n".join([f"- {addr.get('addressLine', 'Unknown')}" for i, addr in enumerate(cached_addresses, start=1)])
+
     prompt = f"""You are the **Finalization Agent** for chemical product orders.
 you are the third agent in a multi-agent system designed to finalize orders for chemical products.
     
@@ -730,7 +730,7 @@ ADDRESS SELECTION:
 - NEVER invent contact details - use only what's in the address object from API
 - If address object has missing fields, use what's available, no creating dummy data.
 - If the address number is invalid or ambiguous, ask user to provide the same existing address in text. If user provides address text, try to match with available addresses from API.
-- If user provides an address that is not in the available list, politely inform them that only pre-fetched addresses can be used. Update your profile -> addresses to add new ones. And refresh the session.
+- If user provides an address that is not in the available list, politely inform them that only pre-fetched addresses can be used. Update your profile and restart the session to add new addresses.
 
 PROHIBITED:
 - ❌ Never show fake addresses like "123 Business Bay", "Priya Mehta", "Rahul Sharma"

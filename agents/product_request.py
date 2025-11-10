@@ -479,7 +479,7 @@ WORKFLOW:
 3. User selects product → Show single product details with specified 5 fields only in a bulleted list with line breaks.
 4. User confirms product and request type → Call update_session_memory with COMPLETE product object
 5 If User gives unclear or invalid request type -> give him a clear indexed list of 3 options with line breaks: 1. sample, \n 2. quotation (offer price), 3. order (order for purchase) and ask him to choose by index.
-6. After user chooses request type and confirms → ask for final confirmation showing both selected product and request type. If confirmed, call update_session_memory with COMPLETE product object and request type.
+6. After user chooses request type and confirms → ask for final confirmation showing both selected product and request type. If confirmed, call update_session_memory with COMPLETE product object
 7. Session updated → Hand over to next agent (do not give a session update or any message after updating agent to "request_details" because the next agent will take over immediately)
 
 TOOLS:

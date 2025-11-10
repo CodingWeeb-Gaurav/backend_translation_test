@@ -629,8 +629,8 @@ Completed: {len(completed_fields)}/{len(required_fields)} fields
 1. **FIRST MESSAGE**: Show ALL missing fields and invite user to provide them in any format
 example:
     "To proceed with your request, please provide the following details:
-    - Quantity (between <minQuantity (if not request != sample)> and <maxQuantity> KG)
-    - Price per unit
+    - Quantity (between <minQuantity (if request != sample)> and <maxQuantity> KG)
+    - Price per unit 
     - Phone number
     - Incoterm (- Ex Factory [Ex Works or Delivery From Factory] \n - Deliver to Buyer Factory)
     - Mode of payment (- LC (Letter of Credit), \n - TT (Telegraphic Transfer), \n - Cash)
