@@ -186,7 +186,7 @@ async def process_request_details(user_input: str, session_data: dict):
                                 },
                                 "price_per_unit": {
                                     "type": "number",
-                                    "description": "Price per unit value"
+                                    "description": "Price per unit value in BDT (Bangladeshi Taka)"
                                 }
                             },
                             "required": ["quantity", "price_per_unit"]
@@ -630,8 +630,8 @@ Completed: {len(completed_fields)}/{len(required_fields)} fields
 example:
     "To proceed with your request, please provide the following details:
     - Quantity (between <minQuantity (if request != sample)> and <maxQuantity> KG)
-    - Price per unit 
-    - Phone number
+    - Price per unit in BDT (Bangladeshi Taka)
+    - Phone number (in international format, with country code)
     - Incoterm (- Ex Factory [Ex Works or Delivery From Factory] \n - Deliver to Buyer Factory)
     - Mode of payment (- LC (Letter of Credit), \n - TT (Telegraphic Transfer), \n - Cash)
     - Packaging preference (- Bulk Tanker (in Truck), \n - PP Bag, \n - Jerry Can, \n - Drum)
