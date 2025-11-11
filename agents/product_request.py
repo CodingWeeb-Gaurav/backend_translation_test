@@ -219,7 +219,7 @@ async def process_with_ai_tools(user_input: str, session_data: dict):
     response = await client.chat.completions.create(
         model="openai/gpt-4o",
         messages=messages,
-        max_tokens=1000,
+        max_tokens=4000,
         tools=[
             {
                 "type": "function",

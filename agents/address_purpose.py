@@ -176,7 +176,7 @@ async def process_address_purpose(user_input: str, session_data: dict):
     response = await client.chat.completions.create(
         model="openai/gpt-4.1",
         messages=messages,
-        max_tokens=1000,
+        max_tokens=2000,
         tools=[
             {
                 "type": "function",
@@ -737,7 +737,7 @@ INDUSTRY SELECTION RULES:
 - Use EXACT _id from the industry at that position (industry at index 0 has _id: {cached_industries[0].get('_id') if cached_industries else 'N/A'})
 - Save ONLY: industry_id (the _id) and industry_name (the name_en)
 - Never save any other industry fields
-
+- Always show the COMPLETE industry list with ALL {len(cached_industries)} items no mater how long it is and correctly update the _id based on user selection. Do not put the selected index in session data.
 ADDRESS SELECTION:
 - When user selects address by number, ALWAYS use the complete address object from get_cached_addresses
 - NEVER invent contact details - use only what's in the address object from API
@@ -754,7 +754,7 @@ PROHIBITED - STRICTLY FORBIDDEN:
 - ❌ Never invent email addresses or phone numbers
 - ❌ Never create placeholder addresses
 - ❌ After order placement, instruct user to refresh page for new session
-
+- ❌ All the prices are in Bangladeshi Taka (BDT). Not in USD or any other currency.
 START IMMEDIATELY by displaying the COMPLETE industry list with all {len(cached_industries)} items."""
 
     return prompt

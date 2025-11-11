@@ -93,7 +93,7 @@ async def process_request_details(user_input: str, session_data: dict):
         response = await client.chat.completions.create(
             model="openai/gpt-4o",  # CHANGED: Using GPT-4o instead of Claude
             messages=messages,
-            max_tokens=1000,
+            max_tokens=2000,
             tools=[
                 {
                     "type": "function",
