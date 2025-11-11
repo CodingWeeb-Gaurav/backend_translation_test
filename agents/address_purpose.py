@@ -478,7 +478,7 @@ async def process_address_purpose(user_input: str, session_data: dict):
 
 # Cached Data Functions
 def get_cached_industries(session_data: dict):
-    """Get cached industries from session data - ONLY REAL DATA"""
+    """Get cached industries from session data - ONLY _id and name_en for active industries"""
     industries = session_data.get("_cached_industries", [])
     if not industries:
         return {
@@ -488,23 +488,24 @@ def get_cached_industries(session_data: dict):
             "message": "No industries available from API"
         }
     
-    # Format industries for display - ONLY REAL DATA
+    # Format industries for display - ONLY _id and name_en
     formatted_industries = []
     for i, industry in enumerate(industries, 1):
         formatted_industries.append({
             "number": i,
-            "id": industry.get("_id"),
+            "id": industry.get("_id"),  # This is the _id to save
             "name": industry.get("name_en", "Unknown Industry")
         })
     
-    print(f"📊 Returning {len(formatted_industries)} REAL industries from API")
+    print(f"📊 Returning {len(formatted_industries)} ACTIVE industries (status:true, isDeleted:false)")
+    print(f"📊 First industry: {formatted_industries[0]['name']} (ID: {formatted_industries[0]['id']})" if formatted_industries else "No industries")
+    
     return {
         "industries": formatted_industries,
         "count": len(industries),
         "status": "success",
-        "message": f"Found {len(industries)} REAL industries from API"
+        "message": f"Found {len(industries)} ACTIVE industries (status:true, isDeleted:false) - Display ALL {len(industries)} items"
     }
-
 def get_cached_addresses(session_data: dict):
     """Get cached addresses from session data - ONLY REAL DATA"""
     addresses = session_data.get("_cached_addresses", [])
@@ -544,7 +545,7 @@ def get_cached_addresses(session_data: dict):
 
 # API Integration Functions (NO FALLBACKS - ONLY REAL DATA)
 async def fetch_industries():
-    """Fetch available industries from API - NO FALLBACKS"""
+    """Fetch available industries from API - Filter only status:true and isDeleted:false"""
     print("🔍 Fetching industries from API...")
     url = "https://nischem.com:2053/category/getAllIndustries"
     headers = {
@@ -581,16 +582,20 @@ async def fetch_industries():
                         raw_industries = result["results"]["inventories"]
                         print(f"🔍 Found {len(raw_industries)} raw industries")
                         
-                        # Filter: only active and not deleted industries
+                        # STRICT FILTERING: Only include industries with status:true and isDeleted:false
                         for industry in raw_industries:
                             if (industry.get("status") == True and 
                                 industry.get("isDeleted") == False):
+                                # SAVE ONLY _id and name_en - remove all other fields
                                 industries_data.append({
                                     "_id": industry.get("_id"),
                                     "name_en": industry.get("name_en")
                                 })
+                                print(f"✅ Included industry: {industry.get('name_en')} (ID: {industry.get('_id')})")
+                            else:
+                                print(f"❌ Excluded industry - status:{industry.get('status')}, isDeleted:{industry.get('isDeleted')}")
                     
-                    print(f"✅ Filtered {len(industries_data)} active REAL industries")
+                    print(f"✅ Filtered {len(industries_data)} active REAL industries (status:true, isDeleted:false)")
                     return {
                         "industries": industries_data,
                         "count": len(industries_data),
@@ -697,49 +702,60 @@ def build_system_prompt(session_data: dict) -> str:
     cached_industries = session_data.get("_cached_industries", [])
     cached_addresses = session_data.get("_cached_addresses", [])
     
-    # Show actual available data in prompt
-    actual_industries = "\n".join([f"- {ind.get('name_en', 'Unknown')}" for i, ind in enumerate(cached_industries, start=1)])
-    actual_addresses = "\n".join([f"- {addr.get('addressLine', 'Unknown')}" for i, addr in enumerate(cached_addresses, start=1)])
+    # Show actual available data in prompt with proper indexing
+    actual_industries = "\n".join([f"{i}. {ind.get('name_en', 'Unknown')} (ID: {ind.get('_id')})" for i, ind in enumerate(cached_industries, start=1)])
+    actual_addresses = "\n".join([f"{i}. {addr.get('addressLine', 'Unknown')}" for i, addr in enumerate(cached_addresses, start=1)])
 
     prompt = f"""You are the **Finalization Agent** for chemical product orders.
 you are the third agent in a multi-agent system designed to finalize orders for chemical products.
     
-🚨 **CRITICAL RULES - NO HALLUCINATION:**
-1. **ONLY USE REAL DATA**: Only show industries/addresses that were successfully fetched from API
-2. **NO DUMMY DATA**: Never invent or show placeholder industries or addresses
-3. **NO FAKE NAMES**: Never invent names, emails, or phone numbers for addresses
-4. **DISPLAY ENTIRE LIST OF INDUSTRIES/ADDRESSES**: Always show the complete list of available industries/addresses from API.
-5. Always display clean numbered lists with proper markdown formatting and line breaks but no enlarged heading text.
+🚨 **CRITICAL RULES - STRICTLY ENFORCED:**
+1. **DISPLAY ENTIRE INDUSTRY LIST**: You MUST show ALL {len(cached_industries)} industries from the API, no matter how long the list is
+2. **USE ACTUAL INDEX NUMBERS**: Display industries with numbers 1 through {len(cached_industries)} exactly as they appear in cached data
+3. **SAVE ONLY _id**: When user confirms an index, save ONLY the _id field to session memory
+4. **NO DATA MODIFICATION**: Never modify, filter, or shorten the industry list - show it completely
+5. **REAL DATA ONLY**: Only use industries/addresses from API cache
+
 ACTUAL AVAILABLE DATA FROM API:
-- Industries ({len(cached_industries)}): 
+- Industries ({len(cached_industries)} available, status:true, isDeleted:false): 
 {actual_industries}
 
-- Addresses ({len(cached_addresses)}):
+- Addresses ({len(cached_addresses)} available):
 {actual_addresses}
 
-WORKFLOW:
-1. Auto-show REAL industries (get_cached_industries)
-2. User selects industry → store with select_industry
-3. Auto-show REAL addresses (get_cached_addresses) 
-4. User selects address → store COMPLETE REAL address object with select_address
-5. Auto-show final confirmation (show_final_confirmation)
-6. Place order when user confirms (place_order_final)
-7. After succesful completion, tell the user to refresh the page if he wants to place a new request. Because you cannot do anything more after the order is placed.
+WORKFLOW - FOLLOW EXACTLY:
+1. **ALWAYS start by calling get_cached_industries** to display ALL industries
+2. User selects industry by number (1-{len(cached_industries)}) → call select_industry with the EXACT _id and name_en from that index
+3. Auto-show addresses → call get_cached_addresses to display ALL addresses  
+4. User selects address by number → call select_address with COMPLETE address object
+5. Show final confirmation → call show_final_confirmation
+6. Place order when user explicitly confirms → call place_order_final
+7. After successful completion, tell user to refresh page for new request
+
+INDUSTRY SELECTION RULES:
+- When user says a number (e.g., "1", "2"), map it to the corresponding industry in the cached list
+- Use EXACT _id from the industry at that position (industry at index 0 has _id: {cached_industries[0].get('_id') if cached_industries else 'N/A'})
+- Save ONLY: industry_id (the _id) and industry_name (the name_en)
+- Never save any other industry fields
+
 ADDRESS SELECTION:
 - When user selects address by number, ALWAYS use the complete address object from get_cached_addresses
 - NEVER invent contact details - use only what's in the address object from API
 - If address object has missing fields, use what's available, no creating dummy data.
 - If the address number is invalid or ambiguous, ask user to provide the same existing address in text. If user provides address text, try to match with available addresses from API.
-- If user provides an address that is not in the available list, politely inform them that only pre-fetched addresses can be used. Update your profile and restart the session to add new addresses.
+- If user provides an address that is not in the available list, politely inform them that only pre-fetched addresses can be used.
 
-PROHIBITED:
+PROHIBITED - STRICTLY FORBIDDEN:
+- ❌ Never show partial or shortened industry lists
+- ❌ Never invent industries or addresses
+- ❌ Never modify the numbering or order of industries
+- ❌ Never save anything except _id for industries
 - ❌ Never show fake addresses like "123 Business Bay", "Priya Mehta", "Rahul Sharma"
 - ❌ Never invent email addresses or phone numbers
-- ❌ Never create placeholder addresses.
-- ❌ Only use data from get_cached_industries and get_cached_addresses
-- ❌ You are unable to update any details except industry and address, if user asks to change other details, politely refuse and tell them to refresh the session to start a new order.
-- ❌ After an order is placed successfully, you cannot make any more changes or place new orders in the same session.
-START by showing ONLY REAL industries immediately."""
+- ❌ Never create placeholder addresses
+- ❌ After order placement, instruct user to refresh page for new session
+
+START IMMEDIATELY by displaying the COMPLETE industry list with all {len(cached_industries)} items."""
 
     return prompt
 
