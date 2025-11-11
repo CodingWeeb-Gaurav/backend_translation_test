@@ -21,30 +21,30 @@ client = AsyncOpenAI(
 # Allowed units for order placement
 ALLOWED_UNITS = ["KG", "TON"]
 
-# Global cache for product searches
-PRODUCT_CACHE = {}
-# Cache for individual product details by ID
-PRODUCT_DETAILS_CACHE = {}
-# Cache for product list numbering
-PRODUCT_LIST_CACHE = {}
-# Cache for current product list display
-CURRENT_PRODUCT_LIST = []
-async def fetch_inventory_query(query: str):
+async def fetch_inventory_query(query: str, session_data: dict):
     """
-    Fetch products from inventory API - Tool for AI to call with caching
+    Fetch products from inventory API - Tool for AI to call with SESSION-SPECIFIC caching
     """
-    # Check cache first
+    # Initialize session cache if needed
+    session_data.setdefault("cache", {})
+    session_data["cache"].setdefault("product_cache", {})
+    session_data["cache"].setdefault("product_details_cache", {})
+    session_data["cache"].setdefault("product_list_cache", {})
+    session_data["cache"].setdefault("current_product_list", [])
+    
     cache_key = query.lower().strip()
-    if cache_key in PRODUCT_CACHE:
-        cached_result = PRODUCT_CACHE[cache_key]
+    
+    # Check session cache first
+    if cache_key in session_data["cache"]["product_cache"]:
+        cached_result = session_data["cache"]["product_cache"][cache_key]
         # Only use cache if it actually has products
         if cached_result.get("results", {}).get("products"):
-            print(f"🔄 Using cached results for: {query}")
+            print(f"🔄 Using session-cached results for: {query}")
             return cached_result
         else:
-            print(f"🔄 Cache has empty results for: {query}, making new API call")
+            print(f"🔄 Session cache has empty results for: {query}, making new API call")
             # Remove the bad cache entry
-            del PRODUCT_CACHE[cache_key]
+            del session_data["cache"]["product_cache"][cache_key]
     
     print(f"🔍 Fetching from API: {query}")
     url = "https://nischem.com:2053/inventory/getQueryResult"
@@ -70,11 +70,12 @@ async def fetch_inventory_query(query: str):
                 
                 # Only cache if we actually got products
                 if result.get("results", {}).get("products"):
-                    PRODUCT_CACHE[cache_key] = result
+                    # Store in session cache instead of global
+                    session_data["cache"]["product_cache"][cache_key] = result
                     
-                    # Clear previous list cache
-                    PRODUCT_LIST_CACHE.clear()
-                    CURRENT_PRODUCT_LIST.clear()
+                    # Clear previous list cache in session
+                    session_data["cache"]["product_list_cache"].clear()
+                    session_data["cache"]["current_product_list"].clear()
                     
                     # Also cache each product individually by ID for quick lookup
                     valid_products = []
@@ -85,21 +86,21 @@ async def fetch_inventory_query(query: str):
                         # Check if unit is allowed
                         if unit.upper() in ALLOWED_UNITS:
                             if product_id:
-                                # Store complete product data
-                                PRODUCT_DETAILS_CACHE[product_id] = product
-                                # Map list number to product ID
-                                PRODUCT_LIST_CACHE[str(i + 1)] = product_id
-                                CURRENT_PRODUCT_LIST.append(product)
+                                # Store complete product data in session cache
+                                session_data["cache"]["product_details_cache"][product_id] = product
+                                # Map list number to product ID in session cache
+                                session_data["cache"]["product_list_cache"][str(i + 1)] = product_id
+                                session_data["cache"]["current_product_list"].append(product)
                                 
-                                print(f"💾 Cached product {i+1}: {product.get('name_en')} -> ID: {product_id}")
+                                print(f"💾 Session-cached product {i+1}: {product.get('name_en')} -> ID: {product_id}")
                             valid_products.append(product)
                     
                     # Update the result with only valid products
                     result["results"]["products"] = valid_products
                     result["results"]["valid_count"] = len(valid_products)
                     
-                    print(f"📊 Cached {len(valid_products)} valid products with list mapping")
-                    print(f"📋 Current list mappings: {PRODUCT_LIST_CACHE}")
+                    print(f"📊 Session-cached {len(valid_products)} valid products with list mapping")
+                    print(f"📋 Session list mappings: {session_data['cache']['product_list_cache']}")
                 else:
                     print("❌ No products found in API response, not caching")
                 
@@ -108,32 +109,30 @@ async def fetch_inventory_query(query: str):
         print(f"❌ API call failed: {e}")
         return {"error": True, "results": {"products": []}}
 
-def get_current_cached_data_for_prompt(language: str = 'en') -> str:
+def get_current_cached_data_for_prompt(session_data: dict) -> str:
     """
     Get current cached product data formatted for system prompt
-    Uses language-specific fields when available
+    Uses session-specific cache instead of global cache
     """
-    if not CURRENT_PRODUCT_LIST:
+    cache = session_data.get("cache", {})
+    current_list = cache.get("current_product_list", [])
+    
+    if not current_list:
         return "No products currently cached. Please search for products first."
     
-    # Prepare clean product data for the prompt
+    # Prepare clean product data for the prompt from session cache
     products_data = []
-    for i, product in enumerate(CURRENT_PRODUCT_LIST):
-        # Use language-specific fields when available, fallback to English
-        name_field = f"name_{language}" if f"name_{language}" in product else "name_en"
-        description_field = f"description_{language}" if f"description_{language}" in product else "description_en"
-        specification_field = f"specification_{language}" if f"specification_{language}" in product else "specification_en"
-        brand_field = f"brand_{language}" if f"brand_{language}" in product else "brand_en"
-        
+    for i, product in enumerate(current_list):
+        # Use only English fields
         product_info = {
             "list_number": i + 1,
-            "name": product.get(name_field, product.get("name_en", "N/A")),
-            "brand": product.get(brand_field, product.get("brand_en", "N/A")),
+            "name": product.get("name_en", "N/A"),
+            "brand": product.get("brand_en", "N/A"),
             "unit": product.get("unit", "N/A"),
             "minQuantity": product.get("minQuantity", "N/A"),
             "maxQuantity": product.get("maxQuantity", product.get("quantity", "N/A")),
-            "specification": product.get(specification_field, product.get("specification_en", "N/A")),
-            "description": product.get(description_field, product.get("description_en", "N/A")),
+            "specification": product.get("specification_en", "N/A"),
+            "description": product.get("description_en", "N/A"),
             "modal": product.get("modal", "N/A"),
             "_id": product.get("_id", "N/A")
         }
@@ -141,12 +140,13 @@ def get_current_cached_data_for_prompt(language: str = 'en') -> str:
     
     return json.dumps(products_data, indent=2, ensure_ascii=False)
 
-def get_product_by_id(product_id: str):
+def get_product_by_id(product_id: str, session_data: dict):
     """
-    Get complete product details by ID from cache
+    Get complete product details by ID from SESSION cache
     """
-    if product_id in PRODUCT_DETAILS_CACHE:
-        return PRODUCT_DETAILS_CACHE[product_id]
+    cache = session_data.get("cache", {})
+    if product_id in cache.get("product_details_cache", {}):
+        return cache["product_details_cache"][product_id]
     return None
 
 async def update_session_memory(updates: dict):
@@ -197,10 +197,10 @@ async def handle_product_request(user_input: str, session_data: dict):
 
 async def process_with_ai_tools(user_input: str, session_data: dict):
     """
-    Core AI processing with tool calling - Using GPT-4o with optimized caching
+    Core AI processing with tool calling - Using GPT-4o with SESSION-SPECIFIC caching
     """
-    # Build comprehensive system prompt with CURRENT cached data
-    system_prompt = build_system_prompt()
+    # Build comprehensive system prompt with CURRENT SESSION cached data
+    system_prompt = build_system_prompt(session_data)
     
     messages = [
         {"role": "system", "content": system_prompt}
@@ -302,9 +302,9 @@ async def process_with_ai_tools(user_input: str, session_data: dict):
             })
             
             if function_name == "fetch_inventory_query":
-                # Call inventory API with caching
+                # Call inventory API with SESSION caching
                 query = function_args["query"]
-                inventory_result = await fetch_inventory_query(query)
+                inventory_result = await fetch_inventory_query(query, session_data)
                 
                 # Filter products by allowed units
                 if inventory_result.get("results", {}).get("products"):
@@ -346,16 +346,16 @@ async def process_with_ai_tools(user_input: str, session_data: dict):
                 print(f"   - Product details keys: {list(product_details.keys()) if product_details else 'None'}")
                 print(f"   - Has _id: {'_id' in product_details if product_details else False}")
                 
-                # If product_details is empty or missing _id, try to get it from cache
+                # If product_details is empty or missing _id, try to get it from SESSION cache
                 if not product_details or "_id" not in product_details:
-                    print(f"🔄 Attempting to get product details from cache for ID: {product_id}")
-                    cached_product = get_product_by_id(product_id)
+                    print(f"🔄 Attempting to get product details from SESSION cache for ID: {product_id}")
+                    cached_product = get_product_by_id(product_id, session_data)
                     if cached_product:
-                        print(f"✅ Found product in cache, updating product_details")
+                        print(f"✅ Found product in session cache, updating product_details")
                         function_args["product_details"] = cached_product
                         product_details = cached_product
                     else:
-                        print("❌ Product not found in cache either")
+                        print("❌ Product not found in session cache either")
                 
                 # Final validation
                 if not product_details or "_id" not in product_details:
@@ -414,12 +414,11 @@ async def process_with_ai_tools(user_input: str, session_data: dict):
         "session_updates": session_updates
     }
 
-def build_system_prompt(language: str = 'en') -> str:
-    """Build system prompt with current cached data included"""
+def build_system_prompt(session_data: dict) -> str:
+    """Build system prompt with current SESSION cached data included"""
     
-    # Get current cached data for the prompt
-    cached_data = get_current_cached_data_for_prompt(language)
-
+    # Get current SESSION cached data for the prompt
+    cached_data = get_current_cached_data_for_prompt(session_data)
 
     system_prompt = f"""You are a conversational product selection assistant. Your goal is to help users find the right product and specify their request type.
 You are the first agent in a triple-agent system where you handle product searches and selections. After your completion, you will hand over to the second agent who collects request details by changing the session's agent to "request_details".
@@ -452,8 +451,8 @@ EXAMPLE OF CORRECT update_session_memory CALL:
     "unit": "KG",
     "minQuantity": 12,
     "maxQuantity": 768,
-    "specification_en": "hbwherbwrwirwirhwir",
-    "description_en": "sdfsdjnwejjjiherjithjret", 
+    "specification_en": "<string>",
+    "description_en": "<string>", 
     "modal": "acsd"
     // ... ALL other fields from cached data
   }},
