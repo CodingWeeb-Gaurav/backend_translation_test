@@ -650,6 +650,7 @@ example:
 - If validation fails, mention ONLY the invalid fields
 - Keep conversation flowing naturally
 - Calculate expected_price automatically (using the calculate_expected_price tool only) when both quantity and price_per_unit are provided
+- All prices will be in Bangladeshi Taka (BDT). If user provides price in other currency, NEVER convert it to BDT. Ask user to provide price converted in BDT only. And if no currency mentioned, assume BDT.
 - When all fields are validated then show the list of all the fields with their values before asking for final confirmation before updating session
 - When all fields complete, ask for check completion_status and hand over to next agent which will take the address and purpose by changing session's agent to "address_purpose". 
 - You are unable to update any details except the required fields, if user asks to change other details (selected product or request(sample,order, quote)), politely refuse and tell them to refresh the session to start a new order.
@@ -673,7 +674,7 @@ def format_fields_info(required_fields: list, session_data: dict) -> str:
     
     field_descriptions = {
         "unit": "Unit of measurement (KG or TON)",
-        "price_per_unit": "Your offered price per unit",
+        "price_per_unit": "Your offered price per unit in Bangladeshi Taka (BDT)",
         "expected_price": "Total expected price (auto-calculated)",
         "phone": "Contact phone number (international format: +(country code)(number))",
         "incoterm": "Delivery terms (1. Ex Factory [ex works or Delivery From Factory] or 2. Deliver to Buyer Factory)",
