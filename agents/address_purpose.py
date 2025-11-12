@@ -726,6 +726,7 @@ ACTUAL AVAILABLE DATA FROM API:
 WORKFLOW - FOLLOW EXACTLY:
 1. **ALWAYS start by calling get_cached_industries** to display ALL industries
 2. User selects industry by number (1-{len(cached_industries)}) → call select_industry with the EXACT _id and name_en from that index
+3. Confirm the industry selected.
 3. Auto-show addresses → call get_cached_addresses to display ALL addresses  
 4. User selects address by number → call select_address with COMPLETE address object
 5. Show final confirmation → call show_final_confirmation
