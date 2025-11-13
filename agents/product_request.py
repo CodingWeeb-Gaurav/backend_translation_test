@@ -47,7 +47,7 @@ async def fetch_inventory_query(query: str, session_data: dict):
             del session_data["cache"]["product_cache"][cache_key]
     
     print(f"🔍 Fetching from API: {query}")
-    url = "https://nischem.com:2053/inventory/getQueryResult"
+    url = "https://nischem.com:2053/inventory/getBotSearchResult"
     headers = {
         "Content-Type": "application/json",
         "x-user-type": "Buyer", 
