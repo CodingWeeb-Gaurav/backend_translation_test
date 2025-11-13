@@ -9,7 +9,8 @@ uvicorn main:app --host 0.0.0.0 --port 8080 --reload
 
 ssh -o StrictHostKeyChecking=no -R falcon-chatbot:80:localhost:8000 serveo.net
 
-
+sudo systemctl daemon-reload
+sudo systemctl restart falcon-chatbot
 
 test- 14 kg at 2433 per kg price, deliver by 2025-12-13 in Jerry can to the buyer factory, paid by LC, phone - 8876798676
 **Changes**
