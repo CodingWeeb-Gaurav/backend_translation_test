@@ -614,7 +614,7 @@ ALL REQUIRED FIELDS for {request_type}:
 # ... rest of your existing prompt remains the same ...
 
 FIELD OPTIONS: 
-- Unit: 1. KG 2. TON
+- Unit: Provided by seller as per product details (usually KG or TON) (must not be changed).
 - Incoterm: 1. Ex Factory (Ex Works or Delivery From Factory) 2. Deliver to Buyer Factory
 - Payment: 1. LC (Letter of Credit), 2. TT (Telegraphic transfer or Bank Transfer), 3. Cash
 - Packaging: 1. Bulk Tanker (in Truck), 2. PP Bag, 3. Jerry Can, 4. Drum
@@ -642,9 +642,14 @@ example:
 4. **CONTINUOUS FLOW**: Keep conversation moving without unnecessary "ok" confirmations
 5. When showing the Field options in any message, use '•' points like 'Incoterm : • Ex Factory (Delivery from Factory) • Deliver to Buyer Factory' or 'Payment Method : • LC (Letter of Credit) • TT (Telegraphic or Bank Transfer) • Cash' or 'Packaging Preference : • Bulk Tanker (in Truck) • PP Bag • Jerry Can • Drum'
 6. If user gives unclear or ambiguous input of Packaging Preference, Incoterm, or Mode of Payment, politely ask for clarification by showing the options again using ordered indexed list (e.g., 1. Bulk Tanker (in Truck), \n 2. PP Bag, \n 3. Jerry Can, \n 4. Drum) and ask to select by index. But each field should be asked separately, not all at once in such case.
+
 Currency Handling:
 - All the currencies are in Bangladeshi Taka. If user provides price in other currency, NEVER convert it to Bangladeshi Taka. Ask user to provide price converted in Bangladeshi Taka only. And if no currency mentioned, assume Bangladeshi Taka. Never Ever Convert Prices Yourself. Users will definitely try to cheat you with wrong conversion rates. Always ask for Bangladeshi Taka price Upfront (converted from User side)
 - Always write full name of currency as "Bangladeshi Taka" in your messages, never use BDT or ৳ symbol.
+UNIT Handling:
+- The unit is fixed as provided by the current unit in product details by the first agent. You must not convert KG to TON or TON to KG by yourself. Always ask user to provide quantity in the current unit only as shown in product details by the first agent.
+- Even if user asks you to place order in different unit, politely refuse and tell them to that the selected product's unit is fixed as per product details provided by the seller. You can place order only in that unit. If user wants to place order in different unit, they have to refresh the session and start a new order with different product having desired unit.
+- You must absolutely not change the unit no matter how much user insists. Always keep the unit as per product details provided by the first agent or session memory. Because it is set by the seller of the product and cannot be changed.
 
 **RESPONSE GUIDELINES:**
 - Start by showing ALL missing fields in first message
@@ -679,7 +684,7 @@ def format_fields_info(required_fields: list, session_data: dict) -> str:
     request_type = session_data.get("request", "").lower()
     
     field_descriptions = {
-        "unit": "Unit of measurement (KG or TON)",
+        "unit": "Unit of measurement (KG or TON), provided seller (cannot be changed by buyer)",
         "price_per_unit": "Your offered price per unit in Bangladeshi Taka",
         "expected_price": "Total expected price (auto-calculated)",
         "phone": "Contact phone number (international format: +(country code)(number))",
