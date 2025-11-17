@@ -186,7 +186,7 @@ async def process_request_details(user_input: str, session_data: dict):
                                 },
                                 "price_per_unit": {
                                     "type": "number",
-                                    "description": "Price per unit value in BDT (Bangladeshi Taka)"
+                                    "description": "Price per unit value in Bangladeshi Taka"
                                 }
                             },
                             "required": ["quantity", "price_per_unit"]
@@ -570,7 +570,6 @@ def get_required_fields(request_type: str) -> list:
         "order":  ["unit", "quantity", "price_per_unit", "expected_price", "phone", "incoterm", "mode_of_payment", "packaging_pref", "delivery_date"],
         "sample": ["unit", "quantity", "price_per_unit", "expected_price", "phone", "incoterm", "mode_of_payment", "packaging_pref", "delivery_date"],
         "quote":  ["unit", "quantity", "price_per_unit", "expected_price", "phone", "incoterm", "mode_of_payment", "packaging_pref", "delivery_date"],  
-        # "ppr":    ["unit", "quantity", "price_per_unit", "expected_price", "delivery_date"]  # PPR has different requirements
     }
     
     # Return fields for the specific request type, or base fields if not found
@@ -630,7 +629,7 @@ Completed: {len(completed_fields)}/{len(required_fields)} fields
 example:
     "To proceed with your request, please provide the following details:
     - Quantity (between <minQuantity (if request != sample)> and <maxQuantity> KG)
-    - Price per unit in BDT (Bangladeshi Taka)
+    - Price per unit in Bangladeshi Taka
     - Phone number (in international format, with country code)
     - Incoterm (- Ex Factory [Ex Works or Delivery From Factory] \n - Deliver to Buyer Factory)
     - Mode of payment (- LC (Letter of Credit), \n - TT (Telegraphic Transfer), \n - Cash)
@@ -643,6 +642,9 @@ example:
 4. **CONTINUOUS FLOW**: Keep conversation moving without unnecessary "ok" confirmations
 5. When showing the Field options in any message, use '•' points like 'Incoterm : • Ex Factory (Delivery from Factory) • Deliver to Buyer Factory' or 'Payment Method : • LC (Letter of Credit) • TT (Telegraphic or Bank Transfer) • Cash' or 'Packaging Preference : • Bulk Tanker (in Truck) • PP Bag • Jerry Can • Drum'
 6. If user gives unclear or ambiguous input of Packaging Preference, Incoterm, or Mode of Payment, politely ask for clarification by showing the options again using ordered indexed list (e.g., 1. Bulk Tanker (in Truck), \n 2. PP Bag, \n 3. Jerry Can, \n 4. Drum) and ask to select by index. But each field should be asked separately, not all at once in such case.
+Currency Handling:
+- All the currencies are in Bangladeshi Taka. If user provides price in other currency, NEVER convert it to Bangladeshi Taka. Ask user to provide price converted in Bangladeshi Taka only. And if no currency mentioned, assume Bangladeshi Taka. Never Ever Convert Prices Yourself. Users will definitely try to cheat you with wrong conversion rates. Always ask for Bangladeshi Taka price Upfront (converted from User side)
+- Always write full name of currency as "Bangladeshi Taka" in your messages, never use BDT or ৳ symbol.
 
 **RESPONSE GUIDELINES:**
 - Start by showing ALL missing fields in first message
@@ -652,7 +654,7 @@ example:
 - Keep conversation flowing naturally
 - Do not assume required quantity to be min or max quantity, and never convert one quantity from one unit to another. The numerical value from the user is the only value you should accept for validation without unit conversion.
 - Calculate expected_price automatically (using the calculate_expected_price tool only) when both quantity and price_per_unit are provided
-- All prices will be in Bangladeshi Taka (BDT). If user provides price in other currency, NEVER convert it to BDT. Ask user to provide price converted in BDT only. And if no currency mentioned, assume BDT. Never Ever Convert Prices Yourself. Users will definitely try to cheat you with wrong conversion rates. Always ask for BDT price Upfront (converted from User side)
+- All prices will be in Bangladeshi Taka. If user provides price in other currency, NEVER convert it to Bangladeshi Taka. Ask user to provide price converted in Bangladeshi Taka only. And if no currency mentioned, assume Bangladeshi Taka. Never Ever Convert Prices Yourself. Users will definitely try to cheat you with wrong conversion rates. Always ask for Bangladeshi Taka price Upfront (converted from User side)
 - When all fields are validated then show the list of all the fields with their values before asking for final confirmation before updating session. you can update the provided data if user wants to change any field among the provided ones. 
 - before you have updated the agent to "address_purpose", confirm with user that all details are correct by final confirmation and ask them to reply "Yes / proceed" to continue. Before final confirmation from user side, you can change the details of the required fields only if user asks to.
 - When all fields complete, ask for check completion_status and hand over to next agent which will take the address and purpose by changing session's agent to "address_purpose". 
@@ -678,7 +680,7 @@ def format_fields_info(required_fields: list, session_data: dict) -> str:
     
     field_descriptions = {
         "unit": "Unit of measurement (KG or TON)",
-        "price_per_unit": "Your offered price per unit in Bangladeshi Taka (BDT)",
+        "price_per_unit": "Your offered price per unit in Bangladeshi Taka",
         "expected_price": "Total expected price (auto-calculated)",
         "phone": "Contact phone number (international format: +(country code)(number))",
         "incoterm": "Delivery terms (1. Ex Factory [ex works or Delivery From Factory] or 2. Deliver to Buyer Factory)",

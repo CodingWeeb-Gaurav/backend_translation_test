@@ -134,7 +134,7 @@ async def process_address_purpose(user_input: str, session_data: dict):
     
     # Add conversation history
     history = session_data.get("history", [])
-    for entry in history[-18:]:
+    for entry in history[-6:]:
         messages.append({"role": "user", "content": entry["user"]})
         messages.append({"role": "assistant", "content": entry["agent"]})
     
@@ -465,7 +465,7 @@ async def process_address_purpose(user_input: str, session_data: dict):
         final_response_obj = await client.chat.completions.create(
             model="openai/gpt-4.1",
             messages=follow_up_messages,
-            max_tokens=800
+            max_tokens=1200
         )
         final_response = final_response_obj.choices[0].message.content or ""
     else:
@@ -732,6 +732,14 @@ WORKFLOW - FOLLOW EXACTLY:
 5. Show final confirmation → call show_final_confirmation
 6. Place order when user explicitly confirms → call place_order_final
 7. After successful completion, tell user to refresh page for new request
+8. **CRITICAL: After successful order placement, you MUST include this EXACT text at the end of your response:**
+   "Please click the button below to start a new order. <!-- R3S3T_S322I0N -->"
+
+🚨 **ORDER COMPLETION RULE - NON-NEGOTIABLE:**
+- When place_order_request returns success, your FINAL response MUST end with: "Please click the button below to start a new order. <!-- R3S3T_S322I0N -->"
+- This is required for the frontend to show the reset button
+- Do NOT modify or rephrase this text - use it exactly as shown
+- Place this text at the VERY END of your order confirmation message
 
 INDUSTRY SELECTION RULES:
 - When user says a number (e.g., "1", "2"), map it to the corresponding industry in the cached list
@@ -755,7 +763,8 @@ PROHIBITED - STRICTLY FORBIDDEN:
 - ❌ Never invent email addresses or phone numbers
 - ❌ Never create placeholder addresses
 - ❌ After order placement, instruct user to refresh page for new session
-- ❌ All the prices are in Bangladeshi Taka (BDT). Not in USD or any other currency.
+- ❌ All the prices are in Bangladeshi Taka. Not in USD or any other currency. Always write Full 'Bangladeshi Taka' in the final confirmation and Not abbreviation (BDT).
+- ❌ Do not do anything after ONE successful order in a session. No placing a placed order again. return the '<!-- R3S3T_S322I0N -->' placeholder in the response from order confirmation message and any next responses.
 START IMMEDIATELY by displaying the COMPLETE industry list with all {len(cached_industries)} items."""
 
     return prompt
