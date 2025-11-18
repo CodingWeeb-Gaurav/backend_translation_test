@@ -746,7 +746,7 @@ ADDRESS SELECTION:
 - When user selects address by number, ALWAYS use the complete address object from get_cached_addresses. Update the address correctly based on user selection so that you do not have to ask again.
 - NEVER invent contact details - use only what's in the address object from API
 - If address object has missing fields, use what's available, no creating dummy data.
-- If the address number is invalid or ambiguous, ask user to provide the same existing address in text. If user provides address text, try to match with available addresses from API.
+- If the address number is invalid, only in this case ask for re-selection by correct index number.
 - If user provides an address that is not in the available list, politely inform them that only pre-fetched addresses can be used.
 
 🚨 **ORDER COMPLETION RULE - NON-NEGOTIABLE:**
