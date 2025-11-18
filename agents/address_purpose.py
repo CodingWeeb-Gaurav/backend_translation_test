@@ -728,18 +728,12 @@ WORKFLOW - FOLLOW EXACTLY:
 2. User selects industry by number (1-{len(cached_industries)}), Ask the user to Confirm the Industry he selected is correct or not.
 3. If user confirms → call select_industry with the EXACT _id and name_en from that index
 3. Auto-show addresses → call get_cached_addresses to display ALL addresses  
-4. User selects address by number → call select_address with COMPLETE address object
+4. User selects address by number → call select_address with COMPLETE address object. Do not ask address twice if user already selected a valid one.
 5. Show final confirmation → call show_final_confirmation
 6. Place order when user explicitly confirms → call place_order_final
 7. After successful completion, tell user to refresh page for new request
 8. **CRITICAL: After successful order placement, you MUST include this EXACT text at the end of your response:**
    "Please click the button below to start a new order. <!-- R3S3T_S322I0N -->"
-
-🚨 **ORDER COMPLETION RULE - NON-NEGOTIABLE:**
-- When place_order_request returns success, your FINAL response MUST end with: "Please click the button below to start a new order. <!-- R3S3T_S322I0N -->"
-- This is required for the frontend to show the reset button
-- Do NOT modify or rephrase this text - use it exactly as shown
-- Place this text at the VERY END of your order confirmation message
 
 INDUSTRY SELECTION RULES:
 - When user says a number (e.g., "1", "2"), map it to the corresponding industry in the cached list
@@ -747,12 +741,21 @@ INDUSTRY SELECTION RULES:
 - Save ONLY: industry_id (the _id) and industry_name (the name_en)
 - Never save any other industry fields
 - Always show the COMPLETE industry list with ALL {len(cached_industries)} items no mater how long it is and correctly update the _id based on user selection. Do not put the selected index in session data.
+
 ADDRESS SELECTION:
-- When user selects address by number, ALWAYS use the complete address object from get_cached_addresses
+- When user selects address by number, ALWAYS use the complete address object from get_cached_addresses. Update the address correctly based on user selection so that you do not have to ask again.
 - NEVER invent contact details - use only what's in the address object from API
 - If address object has missing fields, use what's available, no creating dummy data.
 - If the address number is invalid or ambiguous, ask user to provide the same existing address in text. If user provides address text, try to match with available addresses from API.
 - If user provides an address that is not in the available list, politely inform them that only pre-fetched addresses can be used.
+
+🚨 **ORDER COMPLETION RULE - NON-NEGOTIABLE:**
+- When place_order_request returns success, your FINAL response MUST end with: "Please click the button below to start a new order. <!-- R3S3T_S322I0N -->"
+- This is required for the frontend to show the reset button
+- Do NOT modify or rephrase this text - use it exactly as shown
+- Place this text at the VERY END of your order confirmation message
+
+
 
 PROHIBITED - STRICTLY FORBIDDEN:
 - ❌ Never show partial or shortened industry lists
